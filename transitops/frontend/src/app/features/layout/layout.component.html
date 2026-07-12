@@ -1,0 +1,56 @@
+<div class="app-shell" (click)="closeUserMenu()">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">T</div>
+      <div>
+        <div class="logo-text">TransitOps</div>
+        <div class="logo-sub">Fleet Management</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Operations</div>
+      <a
+        *ngFor="let item of visibleNav"
+        class="nav-item"
+        [class.active]="isActive(item.path)"
+        [routerLink]="item.path"
+      >
+        <span class="nav-icon">{{ item.icon }}</span>
+        {{ item.label }}
+      </a>
+    </nav>
+
+    <!-- User section — click opens menu, NOT direct logout -->
+    <div class="sidebar-footer">
+      <div class="user-pill" (click)="toggleUserMenu($event)">
+        <div class="user-avatar">{{ userInitials }}</div>
+        <div class="user-info">
+          <div class="user-name">{{ auth.currentUser?.name }}</div>
+          <div class="user-role">{{ roleLabel }}</div>
+        </div>
+        <span class="user-chevron" [class.open]="showUserMenu">›</span>
+      </div>
+
+      <!-- Dropdown menu -->
+      <div class="user-dropdown" *ngIf="showUserMenu" (click)="$event.stopPropagation()">
+        <div class="user-dropdown-email">{{ auth.currentUser?.email }}</div>
+        <div class="user-dropdown-role">{{ roleLabel }}</div>
+        <hr class="user-dropdown-divider">
+        <button class="user-dropdown-btn" (click)="logout()">
+          <span>⎋</span> Sign out
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div class="main-area">
+    <div class="page-content">
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+
+</div>

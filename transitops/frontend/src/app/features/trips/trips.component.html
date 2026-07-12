@@ -1,0 +1,254 @@
+<div class="page-header">
+  <div>
+    <h1>Trip Management</h1>
+    <p>{{ trips.length }} trips total</p>
+  </div>
+  <span class="btn-tooltip-wrap" [title]="!canCreate ? 'Only Dispatchers and Fleet Managers can create trips' : ''">
+    <button class="btn btn-primary" (click)="openAdd()" [disabled]="!canCreate">+ Create Trip</button>
+  </span>
+</div>
+
+<!-- Status tabs -->
+<div class="filters-bar">
+  <button class="btn" [class.btn-primary]="filterStatus===''" [class.btn-secondary]="filterStatus!==''" (click)="filterStatus='';applyFilter()">All</button>
+  <button class="btn" *ngFor="let s of statuses" [class.btn-primary]="filterStatus===s" [class.btn-secondary]="filterStatus!==s" (click)="filterStatus=s;applyFilter()">{{ s }}</button>
+  <span class="text-muted text-sm">{{ filtered.length }} results</span>
+</div>
+
+<div class="card">
+  <div *ngIf="loading" class="loading"><div class="spinner"></div></div>
+
+  <div *ngIf="!loading && filtered.length === 0" class="empty-state">
+    <div class="empty-icon">📍</div>
+    <p>No trips found</p>
+  </div>
+
+  <div class="table-wrap" *ngIf="!loading && filtered.length > 0">
+    <table>
+      <thead>
+        <tr>
+          <th>Trip Code</th>
+          <th>Route</th>
+          <th>Vehicle</th>
+          <th>Driver</th>
+          <th>Cargo (kg)</th>
+          <th>Distance</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let t of filtered">
+          <td><span class="font-mono">{{ t.tripCode }}</span></td>
+          <td>
+            {{ t.source }} → {{ t.destination }}
+            <div class="td-sub">{{ t.createdAt | date:'dd MMM yyyy' }}</div>
+          </td>
+          <td>
+            <span class="font-mono">{{ asVehicle(t.vehicle)?.regNumber || '—' }}</span>
+            <div class="td-sub">{{ asVehicle(t.vehicle)?.name || '' }}</div>
+          </td>
+          <td>{{ asDriver(t.driver)?.name || '—' }}</td>
+          <td>{{ t.cargoWeight | number }} kg</td>
+          <td>{{ (t.actualDistance || t.plannedDistance) | number }} km</td>
+          <td><app-status-badge [status]="t.status"></app-status-badge></td>
+          <td>
+            <div class="flex gap-8">
+              <span *ngIf="t.status === 'Draft'" class="btn-tooltip-wrap"
+                    [title]="!canCreate ? 'Only Dispatchers and Fleet Managers can dispatch trips' : ''">
+                <button class="btn btn-primary btn-sm" (click)="dispatch(t)" [disabled]="!canCreate">Dispatch</button>
+              </span>
+              <button *ngIf="t.status === 'Dispatched'" class="btn btn-success btn-sm" (click)="openComplete(t)">Complete</button>
+              <span *ngIf="t.status === 'Draft' || t.status === 'Dispatched'" class="btn-tooltip-wrap"
+                    [title]="!canCreate ? 'Only Dispatchers and Fleet Managers can cancel trips' : ''">
+                <button class="btn btn-secondary btn-sm" (click)="cancel(t)" [disabled]="!canCreate">Cancel</button>
+              </span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Datalist for locations ──────────────────────────────────────────────── -->
+<datalist id="location-list">
+  <option *ngFor="let l of locations" [value]="l.name"></option>
+</datalist>
+
+<!-- ── Create Trip Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Create New Trip</h3>
+      <button class="modal-close" (click)="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+      <form [formGroup]="form">
+        <div class="form-grid">
+
+          <!-- Source -->
+          <div class="form-group">
+            <label>Source *</label>
+            <input formControlName="source" list="location-list"
+                   placeholder="Type or pick a hub…" autocomplete="off"
+                   (input)="onLocationChange()" (change)="onLocationChange()">
+          </div>
+
+          <!-- Destination -->
+          <div class="form-group">
+            <label>Destination *</label>
+            <input formControlName="destination" list="location-list"
+                   placeholder="Type or pick a hub…" autocomplete="off"
+                   (input)="onLocationChange()" (change)="onLocationChange()">
+          </div>
+
+          <!-- Vehicle -->
+          <div class="form-group">
+            <label>Vehicle *</label>
+            <select formControlName="vehicle">
+              <option value="">Select vehicle…</option>
+              <option *ngFor="let v of vehicles" [value]="v._id">
+                {{ v.regNumber }} — {{ v.name }} (cap. {{ v.maxLoadCapacity | number }} kg)
+              </option>
+            </select>
+            <div class="form-error" *ngIf="vehicles.length === 0">No available vehicles</div>
+          </div>
+
+          <!-- Driver -->
+          <div class="form-group">
+            <label>Driver *</label>
+            <select formControlName="driver">
+              <option value="">Select driver…</option>
+              <option *ngFor="let d of drivers" [value]="d._id">
+                {{ d.name }} — Score: {{ d.safetyScore }} · Cat {{ d.licenseCategory }}
+              </option>
+            </select>
+            <div class="form-error" *ngIf="drivers.length === 0">No available drivers</div>
+          </div>
+
+          <!-- Cargo weight -->
+          <div class="form-group">
+            <label>Cargo Weight (kg) *</label>
+            <input type="number" formControlName="cargoWeight" min="1"
+                   [class.input-error]="cargoExceedsCapacity">
+            <!-- Capacity warning -->
+            <div class="capacity-warning" *ngIf="cargoExceedsCapacity">
+              ⚠ {{ form.get('cargoWeight')?.value | number }} kg exceeds
+              {{ selectedVehicle?.name }}'s capacity of
+              {{ selectedVehicle?.maxLoadCapacity | number }} kg
+            </div>
+          </div>
+
+          <!-- Planned distance — auto-filled, but editable -->
+          <div class="form-group">
+            <label>
+              Planned Distance (km) *
+              <span class="label-hint" *ngIf="form.get('plannedDistance')?.value">auto-calculated</span>
+            </label>
+            <input type="number" formControlName="plannedDistance" min="1">
+          </div>
+
+          <!-- Revenue -->
+          <div class="form-group">
+            <label>Expected Revenue (₹)</label>
+            <input type="number" formControlName="revenue" min="0">
+          </div>
+
+          <!-- Notes -->
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea formControlName="notes" rows="2"></textarea>
+          </div>
+
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+      <span class="btn-tooltip-wrap" [title]="formDisabledReason">
+        <button class="btn btn-primary" (click)="create()" [disabled]="!formSubmittable">
+          {{ saving ? 'Creating…' : 'Create Trip' }}
+        </button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Complete Trip Modal ────────────────────────────────────────────────── -->
+<div class="modal-overlay" *ngIf="showCompleteModal" (click)="showCompleteModal=false">
+  <div class="modal modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Complete Trip — {{ completingTrip?.tripCode }}</h3>
+      <button class="modal-close" (click)="showCompleteModal=false">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="margin-bottom:16px;">
+        Enter final details and all trip expenses. Non-zero expenses are auto-logged to the register.
+      </div>
+      <form [formGroup]="completeForm">
+
+        <div class="section-label">Trip Actuals</div>
+        <div class="form-grid" style="margin-bottom:16px;">
+          <div class="form-group">
+            <label>Actual Distance (km) *</label>
+            <input type="number" formControlName="actualDistance" min="0">
+          </div>
+          <div class="form-group">
+            <label>End Odometer (km)</label>
+            <input type="number" formControlName="endOdometer" min="0">
+          </div>
+          <div class="form-group">
+            <label>Revenue Earned (₹)</label>
+            <input type="number" formControlName="revenue" min="0">
+          </div>
+        </div>
+
+        <div class="section-label">Fuel</div>
+        <div class="form-grid" style="margin-bottom:16px;">
+          <div class="form-group">
+            <label>Fuel Consumed (L) *</label>
+            <input type="number" formControlName="fuelConsumed" min="0" step="0.1">
+          </div>
+          <div class="form-group">
+            <label>Fuel Cost per Liter (₹)</label>
+            <input type="number" formControlName="fuelCostPerLiter" min="0" step="0.01">
+          </div>
+        </div>
+
+        <div class="section-label">
+          Trip Expenses
+          <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0;"> — leave 0 if not applicable</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Toll Charges (₹)</label>
+            <input type="number" formControlName="tollCharges" min="0">
+          </div>
+          <div class="form-group"><label>Loading Charges (₹)</label>
+            <input type="number" formControlName="loadingCharges" min="0">
+          </div>
+          <div class="form-group"><label>Unloading Charges (₹)</label>
+            <input type="number" formControlName="unloadingCharges" min="0">
+          </div>
+          <div class="form-group"><label>Fines / Penalties (₹)</label>
+            <input type="number" formControlName="fineAmount" min="0">
+          </div>
+          <div class="form-group"><label>Repair Cost (₹)</label>
+            <input type="number" formControlName="repairCost" min="0">
+          </div>
+          <div class="form-group"><label>Other Expenses (₹)</label>
+            <input type="number" formControlName="otherExpenses" min="0">
+          </div>
+        </div>
+
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showCompleteModal=false">Cancel</button>
+      <button class="btn btn-success"   (click)="confirmComplete()" [disabled]="completeForm.invalid">
+        Mark as Completed
+      </button>
+    </div>
+  </div>
+</div>

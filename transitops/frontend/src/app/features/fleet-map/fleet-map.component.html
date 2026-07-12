@@ -1,0 +1,180 @@
+<div class="page-header">
+  <div>
+    <h1>Fleet Map</h1>
+    <p>Live vehicle locations · Active trips simulated in real time</p>
+  </div>
+  <div class="map-legend">
+    <span class="legend-item" style="color:var(--green);">● Available ({{ statCounts.available }})</span>
+    <span class="legend-item" style="color:var(--amber);">🚛 En Route ({{ statCounts.onTrip }})</span>
+    <span class="legend-item" style="color:var(--red);">● In Shop ({{ statCounts.inShop }})</span>
+    <span *ngIf="statCounts.arrived > 0" class="legend-item legend-arrived">
+      ✓ Arrived ({{ statCounts.arrived }}) — awaiting completion
+    </span>
+  </div>
+</div>
+
+<div class="map-shell">
+
+  <!-- ── Sidebar ────────────────────────────────────────────── -->
+  <div class="map-sidebar">
+
+    <!-- Active trips section -->
+    <div *ngIf="tripSims.length > 0">
+      <div class="map-sidebar-header">
+        <span>En Route ({{ tripSims.length }})</span>
+      </div>
+      <div
+        *ngFor="let sim of tripSims"
+        class="vehicle-list-item"
+        [class.active]="selectedSim?.trip._id === sim.trip._id"
+        [class.arrived]="sim.arrived"
+        (click)="panToSim(sim)"
+      >
+        <div class="vli-dot" [style.background]="sim.arrived ? '#059669' : '#d97706'"></div>
+        <div class="vli-info">
+          <div class="vli-name">{{ sim.vehicle?.name || '—' }}</div>
+          <div class="vli-meta">
+            <span class="font-mono" style="font-size:11px;">{{ sim.vehicle?.regNumber }}</span>
+          </div>
+          <div class="trip-route">{{ sim.trip.source }} → {{ sim.trip.destination }}</div>
+          <!-- Progress bar -->
+          <div class="trip-progress-bar">
+            <div class="trip-progress-fill"
+              [style.width.%]="progressPct(sim)"
+              [style.background]="sim.arrived ? '#059669' : '#d97706'">
+            </div>
+          </div>
+          <div class="trip-pct" [style.color]="sim.arrived ? '#059669' : '#d97706'">
+            {{ sim.arrived ? '✓ Arrived' : progressPct(sim) + '% en route' }}
+          </div>
+        </div>
+        <button
+          *ngIf="sim.arrived"
+          class="btn btn-success btn-sm arrived-btn"
+          (click)="openComplete(sim); $event.stopPropagation()"
+        >Complete</button>
+      </div>
+    </div>
+
+    <!-- Static vehicles section -->
+    <div class="map-sidebar-header">
+      <span>Fleet ({{ vehicles.length }})</span>
+    </div>
+    <div *ngIf="loading" class="loading" style="padding:24px;"><div class="spinner"></div></div>
+    <div class="vehicle-list">
+      <div
+        *ngFor="let v of vehicles"
+        class="vehicle-list-item"
+        [class.active]="selected?._id === v._id"
+        (click)="panTo(v)"
+      >
+        <div class="vli-dot" [style.background]="statusColors[v.status]"></div>
+        <div class="vli-info">
+          <div class="vli-name">{{ v.name }}</div>
+          <div class="vli-meta">
+            <span class="font-mono" style="font-size:11px;">{{ v.regNumber }}</span>
+            <span class="vli-region" *ngIf="v.region">{{ v.region }}</span>
+          </div>
+        </div>
+        <span class="vli-status" [style.color]="statusColors[v.status]">{{ v.status }}</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Map ─────────────────────────────────────────────────── -->
+  <div class="map-area">
+    <div id="fleet-map"></div>
+    <div *ngIf="loading" class="map-loading">
+      <div class="spinner"></div>
+      <p>Loading fleet data…</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Complete Trip Modal (with expenses) ────────────────────────── -->
+<div class="modal-overlay" *ngIf="showCompleteModal" (click)="showCompleteModal=false">
+  <div class="modal modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>
+        Complete Trip — {{ completingSim?.trip?.tripCode }}
+        <span style="font-weight:400;color:var(--text-secondary);font-size:13px;margin-left:8px;">
+          {{ completingSim?.trip?.source }} → {{ completingSim?.trip?.destination }}
+        </span>
+      </h3>
+      <button class="modal-close" (click)="showCompleteModal=false">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-success" style="margin-bottom:16px;">
+        Vehicle <strong>{{ completingSim?.vehicle?.regNumber }}</strong> has arrived at
+        <strong>{{ completingSim?.trip?.destination }}</strong>. Fill in final details and any expenses.
+      </div>
+      <form [formGroup]="completeForm">
+
+        <div class="section-label">Trip Actuals</div>
+        <div class="form-grid" style="margin-bottom:16px;">
+          <div class="form-group">
+            <label>Actual Distance (km) *</label>
+            <input type="number" formControlName="actualDistance" min="0">
+          </div>
+          <div class="form-group">
+            <label>End Odometer (km)</label>
+            <input type="number" formControlName="endOdometer" min="0">
+          </div>
+          <div class="form-group">
+            <label>Revenue Earned (₹)</label>
+            <input type="number" formControlName="revenue" min="0">
+          </div>
+        </div>
+
+        <div class="section-label">Fuel</div>
+        <div class="form-grid" style="margin-bottom:16px;">
+          <div class="form-group">
+            <label>Fuel Consumed (L) *</label>
+            <input type="number" formControlName="fuelConsumed" min="0" step="0.1">
+          </div>
+          <div class="form-group">
+            <label>Fuel Cost per Liter (₹)</label>
+            <input type="number" formControlName="fuelCostPerLiter" min="0" step="0.01">
+          </div>
+        </div>
+
+        <div class="section-label">Trip Expenses <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0;">(leave 0 if not applicable)</span></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Toll Charges (₹)</label>
+            <input type="number" formControlName="tollCharges" min="0">
+          </div>
+          <div class="form-group">
+            <label>Loading Charges (₹)</label>
+            <input type="number" formControlName="loadingCharges" min="0">
+          </div>
+          <div class="form-group">
+            <label>Unloading Charges (₹)</label>
+            <input type="number" formControlName="unloadingCharges" min="0">
+          </div>
+          <div class="form-group">
+            <label>Fines / Penalties (₹)</label>
+            <input type="number" formControlName="fineAmount" min="0">
+          </div>
+          <div class="form-group">
+            <label>Repair Cost (₹)</label>
+            <input type="number" formControlName="repairCost" min="0">
+          </div>
+          <div class="form-group">
+            <label>Other Expenses (₹)</label>
+            <input type="number" formControlName="otherExpenses" min="0">
+          </div>
+        </div>
+
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showCompleteModal=false">Cancel</button>
+      <button class="btn btn-success" (click)="confirmComplete()" [disabled]="completeForm.invalid">
+        Complete Trip &amp; Log Expenses
+      </button>
+    </div>
+  </div>
+</div>

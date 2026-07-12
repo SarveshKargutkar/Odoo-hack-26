@@ -1,0 +1,120 @@
+<div class="page-header">
+  <div>
+    <h1>Analytics & Reports</h1>
+    <p>Operational performance across the fleet</p>
+  </div>
+  <button class="btn btn-secondary" (click)="exportCSV()">Export CSV</button>
+</div>
+
+<div *ngIf="loading" class="loading"><div class="spinner"></div></div>
+
+<ng-container *ngIf="!loading && summary">
+
+  <!-- Summary KPIs -->
+  <div class="kpi-grid" style="margin-bottom:24px;">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value green">₹{{ summary.totalRevenue | number }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Op. Cost</div>
+      <div class="kpi-value red">₹{{ summary.totalOperationalCost | number }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Fuel Cost</div>
+      <div class="kpi-value amber">₹{{ summary.totalFuelCost | number }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Maintenance Cost</div>
+      <div class="kpi-value">₹{{ summary.totalMaintenanceCost | number }}</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Avg Fuel Efficiency</div>
+      <div class="kpi-value">{{ summary.avgFuelEfficiency | number:'1.1-2' }}</div>
+      <div class="kpi-sub">km per liter</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total Distance</div>
+      <div class="kpi-value">{{ summary.totalDistance | number }}</div>
+      <div class="kpi-sub">km</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Completed Trips</div>
+      <div class="kpi-value">{{ summary.completedTrips }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Fuel Consumed</div>
+      <div class="kpi-value">{{ summary.totalFuelLiters | number:'1.1-2' }}</div>
+      <div class="kpi-sub">liters</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;" *ngIf="vehicles.length > 0">
+    <div class="card">
+      <div class="card-header"><h2>Fuel Efficiency by Vehicle</h2><span class="text-muted text-sm">km / liter</span></div>
+      <div class="card-body" style="padding-bottom:16px;">
+        <div class="chart-container"><canvas #fuelChart></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Cost vs Revenue by Vehicle</h2><span class="text-muted text-sm">₹</span></div>
+      <div class="card-body" style="padding-bottom:16px;">
+        <div class="chart-container"><canvas #costChart></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-vehicle table -->
+  <div class="card">
+    <div class="card-header"><h2>Vehicle Performance Breakdown</h2></div>
+    <div *ngIf="vehicles.length === 0" class="empty-state">
+      <div class="empty-icon">📊</div>
+      <p>No data yet — complete some trips to see analytics</p>
+    </div>
+    <div class="table-wrap" *ngIf="vehicles.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Vehicle</th>
+            <th>Trips</th>
+            <th>Distance</th>
+            <th>Fuel</th>
+            <th>Fuel Cost</th>
+            <th>Maint. Cost</th>
+            <th>Op. Cost</th>
+            <th>Revenue</th>
+            <th>Efficiency</th>
+            <th>ROI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let v of vehicles">
+            <td>
+              <span class="font-mono">{{ v.regNumber }}</span>
+              <div class="td-sub">{{ v.name }}</div>
+            </td>
+            <td>{{ v.totalTrips }}</td>
+            <td>{{ v.totalDistance | number }} km</td>
+            <td>{{ v.totalFuelLiters | number:'1.1-2' }} L</td>
+            <td>₹{{ v.totalFuelCost | number }}</td>
+            <td>₹{{ v.totalMaintenanceCost | number }}</td>
+            <td><strong>₹{{ v.operationalCost | number }}</strong></td>
+            <td><strong style="color:var(--green)">₹{{ v.totalRevenue | number }}</strong></td>
+            <td>
+              <span [style.color]="v.fuelEfficiency >= 10 ? 'var(--green)' : v.fuelEfficiency >= 6 ? 'var(--amber)' : 'var(--red)'">
+                {{ v.fuelEfficiency | number:'1.1-2' }} km/L
+              </span>
+            </td>
+            <td>
+              <span [style.color]="v.roi >= 0 ? 'var(--green)' : 'var(--red)'">
+                {{ v.roi | number:'1.1-2' }}%
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</ng-container>

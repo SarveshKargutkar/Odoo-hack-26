@@ -1,0 +1,136 @@
+<div *ngIf="loading" class="loading"><div class="spinner"></div>Loading dashboard…</div>
+
+<ng-container *ngIf="!loading && kpis">
+
+  <div class="page-header">
+    <div>
+      <h1>Operations Overview</h1>
+      <p>Live fleet status and key metrics</p>
+    </div>
+  </div>
+
+  <!-- KPI Grid -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Fleet</div>
+      <div class="kpi-value">{{ kpis.totalVehicles }}</div>
+      <div class="kpi-sub">registered vehicles</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Available</div>
+      <div class="kpi-value">{{ kpis.available }}</div>
+      <div class="kpi-sub">ready for dispatch</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">On Trip</div>
+      <div class="kpi-value">{{ kpis.onTrip }}</div>
+      <div class="kpi-sub">currently deployed</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">In Maintenance</div>
+      <div class="kpi-value">{{ kpis.inShop }}</div>
+      <div class="kpi-sub">in shop</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Active Trips</div>
+      <div class="kpi-value">{{ kpis.activeTrips }}</div>
+      <div class="kpi-sub">dispatched</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Pending Trips</div>
+      <div class="kpi-value">{{ kpis.pendingTrips }}</div>
+      <div class="kpi-sub">awaiting dispatch</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Drivers on Duty</div>
+      <div class="kpi-value">{{ kpis.driversOnDuty }}</div>
+      <div class="kpi-sub">of {{ kpis.totalDrivers }} total</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Fleet Utilization</div>
+      <div class="kpi-value">{{ kpis.fleetUtilization }}%</div>
+      <div class="kpi-sub">active / total</div>
+    </div>
+    <div class="kpi-card" [ngClass]="kpis.expiringLicenses > 0 ? 'amber' : ''">
+      <div class="kpi-label">Expiring Licenses</div>
+      <div class="kpi-value">{{ kpis.expiringLicenses }}</div>
+      <div class="kpi-sub">within 30 days</div>
+    </div>
+  </div>
+
+  <!-- Active Trips Table -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <h2>Active Trips</h2>
+      <a routerLink="/trips" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    <div *ngIf="recentTrips.length === 0" class="empty-state">
+      <div class="empty-icon">📍</div>
+      <p>No active trips right now</p>
+    </div>
+    <div class="table-wrap" *ngIf="recentTrips.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Trip</th>
+            <th>Route</th>
+            <th>Vehicle</th>
+            <th>Driver</th>
+            <th>Cargo (kg)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let trip of recentTrips">
+            <td><span class="font-mono">{{ trip.tripCode }}</span></td>
+            <td>
+              {{ asVehicle(trip.vehicle)?.regNumber || '—' }}
+              <div class="td-sub">{{ trip.source }} → {{ trip.destination }}</div>
+            </td>
+            <td>{{ asVehicle(trip.vehicle)?.name || '—' }}</td>
+            <td>{{ asDriver(trip.driver)?.name || '—' }}</td>
+            <td>{{ trip.cargoWeight | number }}</td>
+            <td><app-status-badge [status]="trip.status"></app-status-badge></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Fleet Status Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Fleet Status</h2>
+      <a routerLink="/vehicles" class="btn btn-ghost btn-sm">Manage fleet →</a>
+    </div>
+    <div *ngIf="vehicles.length === 0" class="empty-state">
+      <div class="empty-icon">🚛</div>
+      <p>No vehicles registered yet</p>
+    </div>
+    <div class="table-wrap" *ngIf="vehicles.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Reg No.</th>
+            <th>Vehicle</th>
+            <th>Type</th>
+            <th>Capacity</th>
+            <th>Odometer</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let v of vehicles">
+            <td><span class="font-mono">{{ v.regNumber }}</span></td>
+            <td>{{ v.name }}</td>
+            <td>{{ v.type }}</td>
+            <td>{{ v.maxLoadCapacity | number }} kg</td>
+            <td>{{ v.odometer | number }} km</td>
+            <td><app-status-badge [status]="v.status"></app-status-badge></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</ng-container>

@@ -1,0 +1,62 @@
+/* Layout-specific styles are in global styles.css */
+
+/* ── User menu dropdown ─────────────────────────────────── */
+.user-chevron {
+  font-size: 14px;
+  color: var(--sidebar-text);
+  margin-left: auto;
+  transform: rotate(90deg);
+  transition: transform 0.2s;
+  line-height: 1;
+}
+.user-chevron.open { transform: rotate(-90deg); }
+
+.user-dropdown {
+  background: #1f2937;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  margin: 0 12px 8px;
+  padding: 10px;
+  animation: fadeSlideUp 0.15s ease-out;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.user-dropdown-email {
+  font-size: 11.5px;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.user-dropdown-role {
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+.user-dropdown-divider {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin: 6px 0;
+}
+.user-dropdown-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #f87171;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.1s;
+}
+.user-dropdown-btn:hover { background: rgba(248,113,113,0.1); }

@@ -1,0 +1,11 @@
+<div class="toast-container">
+  <div
+    *ngFor="let t of toasts$ | async; trackBy: trackById"
+    class="toast toast--{{ t.type }}"
+    [class.toast--persistent]="t.persistent"
+  >
+    <span class="toast-icon">{{ icon(t.type) }}</span>
+    <span class="toast-msg">{{ t.message }}</span>
+    <button class="toast-close" (click)="toastService.dismiss(t.id)" title="Dismiss">✕</button>
+  </div>
+</div>

@@ -1,0 +1,139 @@
+<div class="page-header">
+  <div>
+    <h1>Driver Management</h1>
+    <p>{{ drivers.length }} registered drivers</p>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-secondary btn-sm" (click)="exportCSV()">Export CSV</button>
+    <span class="btn-tooltip-wrap" [title]="!canManage ? 'Only Fleet Managers can add drivers' : ''">
+      <button class="btn btn-primary" (click)="openAdd()" [disabled]="!canManage">+ Add Driver</button>
+    </span>
+  </div>
+</div>
+
+<div class="filters-bar">
+  <div class="search-input">
+    <input type="text" placeholder="Search by name or license…" [(ngModel)]="search" (input)="applyFilter()">
+  </div>
+  <select [(ngModel)]="filterStatus" (change)="applyFilter()">
+    <option value="">All statuses</option>
+    <option *ngFor="let s of statuses">{{ s }}</option>
+  </select>
+  <span class="text-muted text-sm">{{ filtered.length }} results</span>
+</div>
+
+<div class="card">
+  <div *ngIf="loading" class="loading"><div class="spinner"></div></div>
+
+  <div *ngIf="!loading && filtered.length === 0" class="empty-state">
+    <div class="empty-icon">👤</div>
+    <p>No drivers found</p>
+  </div>
+
+  <div class="table-wrap" *ngIf="!loading && filtered.length > 0">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>License No.</th>
+          <th>Category</th>
+          <th>License Expiry</th>
+          <th>Contact</th>
+          <th>Safety Score</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let d of filtered">
+          <td>{{ d.name }}</td>
+          <td><span class="font-mono">{{ d.licenseNumber }}</span></td>
+          <td>{{ d.licenseCategory }}</td>
+          <td>
+            {{ d.licenseExpiry | date:'dd MMM yyyy' }}
+            <span *ngIf="isExpired(d)" class="badge red" style="margin-left:6px;">Expired</span>
+            <span *ngIf="!isExpired(d) && isExpiringSoon(d)" class="badge amber" style="margin-left:6px;">Expiring</span>
+          </td>
+          <td>{{ d.contact }}</td>
+          <td>
+            <span [style.color]="d.safetyScore >= 80 ? 'var(--green)' : d.safetyScore >= 60 ? 'var(--amber)' : 'var(--red)'" style="font-weight:600;">
+              {{ d.safetyScore }}
+            </span>
+            <span class="text-muted">/100</span>
+          </td>
+          <td><app-status-badge [status]="d.status"></app-status-badge></td>
+          <td class="text-right">
+            <span class="btn-tooltip-wrap" [title]="!canManage ? 'Only Fleet Managers can edit drivers' : ''">
+              <button class="btn btn-ghost btn-sm" (click)="openEdit(d)" [disabled]="!canManage">Edit</button>
+            </span>
+            <span class="btn-tooltip-wrap" [title]="!canManage ? 'Only Fleet Managers can remove drivers' : (d.status === 'On Trip' ? 'Driver is currently On Trip' : '')">
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);"
+                      (click)="remove(d)" [disabled]="!canManage || d.status === 'On Trip'">Remove</button>
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ editingId ? 'Edit Driver' : 'Register Driver' }}</h3>
+      <button class="modal-close" (click)="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+      <form [formGroup]="form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input formControlName="name" placeholder="Ramesh Kumar">
+          </div>
+          <div class="form-group">
+            <label>License Number *</label>
+            <input formControlName="licenseNumber" placeholder="MH0120230012345">
+          </div>
+          <div class="form-group">
+            <label>License Category *</label>
+            <select formControlName="licenseCategory">
+              <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>License Expiry *</label>
+            <input type="date" formControlName="licenseExpiry">
+          </div>
+          <div class="form-group">
+            <label>Contact No. *</label>
+            <input formControlName="contact" placeholder="9876543210">
+          </div>
+          <div class="form-group">
+            <label>Safety Score (0–100)</label>
+            <input type="number" formControlName="safetyScore" min="0" max="100">
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select formControlName="status">
+              <option *ngFor="let s of statuses">{{ s }}</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea formControlName="notes" rows="2"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+      <span class="btn-tooltip-wrap" [title]="form.invalid ? 'Fill in all required fields' : ''">
+        <button class="btn btn-primary" (click)="save()" [disabled]="form.invalid || saving">
+          {{ saving ? 'Saving…' : (editingId ? 'Update' : 'Register') }}
+        </button>
+      </span>
+    </div>
+  </div>
+</div>

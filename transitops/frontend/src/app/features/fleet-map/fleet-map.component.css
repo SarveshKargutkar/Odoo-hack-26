@@ -1,0 +1,106 @@
+.map-legend {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.legend-item { font-size: 12.5px; font-weight: 600; }
+.legend-arrived {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  animation: pulse-green 1.5s ease-in-out infinite;
+}
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(5,150,105,0.3); }
+  50%       { box-shadow: 0 0 0 5px rgba(5,150,105,0); }
+}
+
+/* ── Shell ──────────────────────────────────────────────────── */
+.map-shell {
+  display: flex;
+  height: calc(100vh - 148px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: white;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────── */
+.map-sidebar {
+  width: 268px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.map-sidebar-header {
+  padding: 8px 14px;
+  background: #f9fafb;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.vehicle-list { flex: 1; }
+
+.vehicle-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.1s;
+}
+.vehicle-list-item:hover  { background: #f9fafb; }
+.vehicle-list-item.active { background: #eff6ff; }
+.vehicle-list-item.arrived { background: #ecfdf5; }
+
+.vli-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.vli-info { flex: 1; min-width: 0; }
+.vli-name { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vli-meta { display: flex; gap: 6px; align-items: center; margin-top: 1px; }
+.vli-region { font-size: 11px; color: var(--text-muted); }
+.vli-status { font-size: 11px; font-weight: 600; white-space: nowrap; margin-top: 3px; }
+
+/* Trip progress in sidebar */
+.trip-route { font-size: 11px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trip-progress-bar {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  margin: 4px 0 2px;
+  overflow: hidden;
+}
+.trip-progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+.trip-pct { font-size: 10.5px; font-weight: 700; }
+
+.arrived-btn {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 4px 8px;
+  margin-top: 2px;
+  animation: pulse-green 1.5s ease-in-out infinite;
+}
+
+/* ── Map area ─────────────────────────────────────────────────── */
+.map-area { flex: 1; position: relative; }
+#fleet-map { width: 100%; height: 100%; }
+
+.map-loading {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.85);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; font-size: 13px; color: var(--text-muted); z-index: 1000;
+}

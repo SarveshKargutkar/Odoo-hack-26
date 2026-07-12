@@ -1,0 +1,174 @@
+<div class="page-header">
+  <div>
+    <h1>Fuel & Expenses</h1>
+    <p>Fuel: ₹{{ totalFuelCost() | number }} &nbsp;|&nbsp; Other: ₹{{ totalExpenses() | number }}</p>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-secondary" (click)="exportFuelCSV()">Export CSV</button>
+    <span class="btn-tooltip-wrap" *ngIf="activeTab === 'fuel'"
+          [title]="!canManage ? 'Only Fleet Managers and Financial Analysts can add fuel logs' : ''">
+      <button class="btn btn-primary" [disabled]="!canManage"
+              (click)="showFuelModal=true;fuelForm.reset({date:today,odometer:0});error=''">+ Fuel Log</button>
+    </span>
+    <span class="btn-tooltip-wrap" *ngIf="activeTab === 'expenses'"
+          [title]="!canManage ? 'Only Fleet Managers and Financial Analysts can add expenses' : ''">
+      <button class="btn btn-primary" [disabled]="!canManage"
+              (click)="showExpenseModal=true;expenseForm.reset({type:'Toll',date:today});error=''">+ Expense</button>
+    </span>
+  </div>
+</div>
+
+<div class="filters-bar">
+  <button class="btn" [class.btn-primary]="activeTab==='fuel'" [class.btn-secondary]="activeTab!=='fuel'" (click)="activeTab='fuel'">Fuel Logs</button>
+  <button class="btn" [class.btn-primary]="activeTab==='expenses'" [class.btn-secondary]="activeTab!=='expenses'" (click)="activeTab='expenses'">Other Expenses</button>
+</div>
+
+<div *ngIf="loading" class="loading"><div class="spinner"></div></div>
+
+<!-- Fuel Logs -->
+<div class="card" *ngIf="!loading && activeTab === 'fuel'">
+  <div *ngIf="fuelLogs.length === 0" class="empty-state">
+    <div class="empty-icon">⛽</div>
+    <p>No fuel logs yet</p>
+  </div>
+  <div class="table-wrap" *ngIf="fuelLogs.length > 0">
+    <table>
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Date</th>
+          <th>Liters</th>
+          <th>Cost/Liter</th>
+          <th>Total Cost</th>
+          <th>Odometer</th>
+          <th>Station</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let f of fuelLogs">
+          <td>
+            <span class="font-mono">{{ asVehicle(f.vehicle)?.regNumber || '—' }}</span>
+            <div class="td-sub">{{ asVehicle(f.vehicle)?.name || '' }}</div>
+          </td>
+          <td>{{ f.date | date:'dd MMM yyyy' }}</td>
+          <td>{{ f.liters | number:'1.1-2' }} L</td>
+          <td>₹{{ f.costPerLiter }}</td>
+          <td><strong>₹{{ f.totalCost | number:'1.2-2' }}</strong></td>
+          <td>{{ f.odometer | number }} km</td>
+          <td>{{ f.stationName || '—' }}</td>
+          <td>
+            <span class="btn-tooltip-wrap" [title]="!canManage ? 'Only Fleet Managers and Financial Analysts can delete' : ''">
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);" (click)="deleteFuel(f._id)" [disabled]="!canManage">✕</button>
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Expenses -->
+<div class="card" *ngIf="!loading && activeTab === 'expenses'">
+  <div *ngIf="expenses.length === 0" class="empty-state">
+    <div class="empty-icon">💳</div>
+    <p>No expenses recorded</p>
+  </div>
+  <div class="table-wrap" *ngIf="expenses.length > 0">
+    <table>
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Amount</th>
+          <th>Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let e of expenses">
+          <td><span class="font-mono">{{ asVehicle(e.vehicle)?.regNumber || '—' }}</span></td>
+          <td><span class="badge gray">{{ e.type }}</span></td>
+          <td>{{ e.description || '—' }}</td>
+          <td><strong>₹{{ e.amount | number }}</strong></td>
+          <td>{{ e.date | date:'dd MMM yyyy' }}</td>
+          <td>
+            <span class="btn-tooltip-wrap" [title]="!canManage ? 'Only Fleet Managers and Financial Analysts can delete' : ''">
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);" (click)="deleteExpense(e._id)" [disabled]="!canManage">✕</button>
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Fuel Modal -->
+<div class="modal-overlay" *ngIf="showFuelModal" (click)="showFuelModal=false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Add Fuel Log</h3>
+      <button class="modal-close" (click)="showFuelModal=false">✕</button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+      <form [formGroup]="fuelForm">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Vehicle *</label>
+            <select formControlName="vehicle">
+              <option value="">Select vehicle…</option>
+              <option *ngFor="let v of vehicles" [value]="v._id">{{ v.regNumber }} — {{ v.name }}</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Liters *</label><input type="number" formControlName="liters" step="0.1" min="0.1"></div>
+          <div class="form-group"><label>Cost per Liter (₹) *</label><input type="number" formControlName="costPerLiter" step="0.01"></div>
+          <div class="form-group"><label>Date *</label><input type="date" formControlName="date"></div>
+          <div class="form-group"><label>Odometer (km) *</label><input type="number" formControlName="odometer" min="0"></div>
+          <div class="form-group full"><label>Fuel Station</label><input formControlName="stationName" placeholder="BPCL, HP, etc."></div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showFuelModal=false">Cancel</button>
+      <button class="btn btn-primary" (click)="saveFuel()" [disabled]="fuelForm.invalid || saving">{{ saving ? 'Saving…' : 'Add Fuel Log' }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Expense Modal -->
+<div class="modal-overlay" *ngIf="showExpenseModal" (click)="showExpenseModal=false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Add Expense</h3>
+      <button class="modal-close" (click)="showExpenseModal=false">✕</button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+      <form [formGroup]="expenseForm">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Vehicle *</label>
+            <select formControlName="vehicle">
+              <option value="">Select vehicle…</option>
+              <option *ngFor="let v of vehicles" [value]="v._id">{{ v.regNumber }} — {{ v.name }}</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Type *</label>
+            <select formControlName="type">
+              <option *ngFor="let t of expenseTypes">{{ t }}</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Amount (₹) *</label><input type="number" formControlName="amount" min="0"></div>
+          <div class="form-group"><label>Date *</label><input type="date" formControlName="date"></div>
+          <div class="form-group full"><label>Description</label><input formControlName="description" placeholder="Brief description"></div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showExpenseModal=false">Cancel</button>
+      <button class="btn btn-primary" (click)="saveExpense()" [disabled]="expenseForm.invalid || saving">{{ saving ? 'Saving…' : 'Add Expense' }}</button>
+    </div>
+  </div>
+</div>

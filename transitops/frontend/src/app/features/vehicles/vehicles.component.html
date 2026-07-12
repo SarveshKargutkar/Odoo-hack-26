@@ -1,0 +1,176 @@
+<div class="page-header">
+  <div>
+    <h1>Vehicle Registry</h1>
+    <p>{{ vehicles.length }} registered vehicles</p>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-secondary btn-sm" (click)="exportCSV()">Export CSV</button>
+    <span class="btn-tooltip-wrap" [title]="!canManage ? 'Only Fleet Managers can add vehicles' : ''">
+      <button class="btn btn-primary" (click)="openAdd()" [disabled]="!canManage">+ Add Vehicle</button>
+    </span>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+  <div class="search-input">
+    <input type="text" placeholder="Search reg no. or name…" [(ngModel)]="search" (input)="applyFilter()">
+  </div>
+  <select [(ngModel)]="filterStatus" (change)="applyFilter()">
+    <option value="">All statuses</option>
+    <option *ngFor="let s of statuses">{{ s }}</option>
+  </select>
+  <select [(ngModel)]="filterType" (change)="applyFilter()">
+    <option value="">All types</option>
+    <option *ngFor="let t of vehicleTypes">{{ t }}</option>
+  </select>
+  <span class="text-muted text-sm">{{ filtered.length }} results</span>
+</div>
+
+<!-- Table -->
+<div class="card">
+  <div *ngIf="loading" class="loading"><div class="spinner"></div></div>
+
+  <div *ngIf="!loading && filtered.length === 0" class="empty-state">
+    <div class="empty-icon">🚛</div>
+    <p>No vehicles found</p>
+  </div>
+
+  <div class="table-wrap" *ngIf="!loading && filtered.length > 0">
+    <table>
+      <thead>
+        <tr>
+          <th>Reg No.</th>
+          <th>Vehicle Name</th>
+          <th>Type</th>
+          <th>Capacity</th>
+          <th>Odometer</th>
+          <th>Acq. Cost</th>
+          <th>Region</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let v of filtered">
+          <td><span class="font-mono">{{ v.regNumber }}</span></td>
+          <td>{{ v.name }}</td>
+          <td>{{ v.type }}</td>
+          <td>{{ v.maxLoadCapacity | number }} kg</td>
+          <td>{{ v.odometer | number }} km</td>
+          <td>₹{{ v.acquisitionCost | number }}</td>
+          <td>{{ v.region || '—' }}</td>
+          <td><app-status-badge [status]="v.status"></app-status-badge></td>
+          <td class="text-right">
+            <span class="btn-tooltip-wrap" [title]="!canManage ? 'Only Fleet Managers can edit vehicles' : ''">
+              <button class="btn btn-ghost btn-sm" (click)="openEdit(v)" [disabled]="!canManage">Edit</button>
+            </span>
+            <span class="btn-tooltip-wrap" *ngIf="v.status !== 'Retired'"
+                  [title]="!canManage ? 'Only Fleet Managers can retire vehicles' : (v.status === 'On Trip' ? 'Vehicle is currently On Trip' : '')">
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);"
+                      (click)="openRetire(v)"
+                      [disabled]="!canManage || v.status === 'On Trip'">Retire</button>
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ editingId ? 'Edit Vehicle' : 'Register Vehicle' }}</h3>
+      <button class="modal-close" (click)="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+      <form [formGroup]="form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Registration No. *</label>
+            <input formControlName="regNumber" placeholder="MH12AB1234">
+          </div>
+          <div class="form-group">
+            <label>Vehicle Name / Model *</label>
+            <input formControlName="name" placeholder="Tata Ace Van-01">
+          </div>
+          <div class="form-group">
+            <label>Type *</label>
+            <select formControlName="type">
+              <option *ngFor="let t of vehicleTypes" [value]="t">{{ t }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Max Load Capacity (kg) *</label>
+            <input type="number" formControlName="maxLoadCapacity" min="1">
+          </div>
+          <div class="form-group">
+            <label>Odometer (km)</label>
+            <input type="number" formControlName="odometer" min="0">
+          </div>
+          <div class="form-group">
+            <label>Acquisition Cost (₹) *</label>
+            <input type="number" formControlName="acquisitionCost" min="0">
+          </div>
+          <div class="form-group">
+            <label>Region</label>
+            <select formControlName="region">
+              <option value="">— Select region —</option>
+              <option *ngFor="let r of regions" [value]="r">{{ r }}</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea formControlName="notes" rows="2"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+      <span class="btn-tooltip-wrap" [title]="saveTooltip">
+        <button class="btn btn-primary" (click)="save()" [disabled]="!canManage || form.invalid || saving">
+          {{ saving ? 'Saving…' : (editingId ? 'Update' : 'Register') }}
+        </button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Retire Confirmation Modal -->
+<div class="modal-overlay" *ngIf="showRetireModal" (click)="cancelRetire()">
+  <div class="modal" style="max-width:440px;" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Retire Vehicle</h3>
+      <button class="modal-close" (click)="cancelRetire()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-warning" style="margin-bottom:16px;">
+        This action permanently retires the vehicle from active fleet operations.
+      </div>
+      <div style="background:var(--bg-secondary);border-radius:8px;padding:16px;">
+        <div style="font-weight:600;font-size:15px;margin-bottom:8px;">
+          {{ retiringVehicle?.name }}
+          <span class="font-mono" style="font-size:12px;color:var(--text-secondary);margin-left:8px;">
+            {{ retiringVehicle?.regNumber }}
+          </span>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);">
+          Type: {{ retiringVehicle?.type }} &nbsp;|&nbsp;
+          Region: {{ retiringVehicle?.region || '—' }} &nbsp;|&nbsp;
+          Odometer: {{ retiringVehicle?.odometer | number }} km
+        </div>
+      </div>
+      <p style="margin-top:16px;font-size:13.5px;color:var(--text-secondary);">
+        The vehicle will be marked as <strong>Retired</strong> and cannot be assigned to new trips.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="cancelRetire()">Cancel</button>
+      <button class="btn btn-danger"    (click)="confirmRetire()">Confirm Retire</button>
+    </div>
+  </div>
+</div>
